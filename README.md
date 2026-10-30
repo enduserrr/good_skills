@@ -1,4 +1,4 @@
-# 🦜 Good Skills - a drop into package
+# 🦜 Good Skills - a drop in package
 
 Curated skills for a Hermes agent (or some other). Each top-level dir is a skill
 you can copy into Hermes's `skills/` directory.

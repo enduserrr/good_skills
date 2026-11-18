@@ -1,0 +1,48 @@
+#!/usr/bin/env python3
+"""decide-admin — USER-side gate control for delegated approval sessions.
+
+Run this yourself, in your own terminal:
+
+  scripts/decide-admin allow    # delegation launches permitted
+  scripts/decide-admin deny     # refused (default)
+  scripts/decide-admin pause    # kill switch: any live delegation intent stops at next launch
+  scripts/decide-admin status
+
+Rule of record: an agent must never grant delegated approvals to itself. When
+the gate is off, its only path is to ASK you; you decide and flip the gate.
+"""
+from __future__ import annotations
+
+import json
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+import delegation_gate as gate  # noqa: E402
+
+_VERBS = {"allow": (gate.ALLOWED, "opted in by user via decide-admin"),
+          "deny": (gate.OFF, "denied by user via decide-admin"),
+          "pause": (gate.OFF, "PAUSED (kill switch) by user via decide-admin")}
+
+
+def main(argv=None) -> int:
+    args = sys.argv[1:] if argv is None else argv
+    if len(args) != 1 or args[0] not in (*_VERBS, "status"):
+        print(__doc__.strip(), file=sys.stderr)
+        return 2
+    if args[0] == "status":
+        doc = gate.read_gate()
+        doc["gate_file"] = str(gate.gate_path())
+        doc["delegation"] = "PERMITTED" if doc["state"] == gate.ALLOWED else "REFUSED"
+        print(json.dumps(doc, indent=2, sort_keys=True))
+        return 0
+    state, note = _VERBS[args[0]]
+    doc = gate.write_gate(state, note)
+    effect = "delegation launches are now PERMITTED" if state == gate.ALLOWED else \
+        "delegation launches are now REFUSED"
+    print(json.dumps({**doc, "effect": effect}, indent=2, sort_keys=True))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

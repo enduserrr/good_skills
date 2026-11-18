@@ -1,0 +1,11 @@
+[Unit]
+Description=guardian shim (Hermes smart-approval seat -> local decider, 127.0.0.1:9932)
+After=network-online.target decide.service
+
+[Service]
+ExecStart=/usr/bin/python3 %h/.hermes/plugins/decider/guardian_shim.py --port 9932 --host 127.0.0.1
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target

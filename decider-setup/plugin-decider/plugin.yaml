@@ -1,0 +1,7 @@
+name: decider
+version: "0.1.0"
+description: "Swap-ready local decision client: batched typed questions (choice/score/noul) with calibrated probabilities from registered decider models (default: d1-2b on localhost:9931). Tool 'decide' + CLI scripts/decide; delegation gate for approval profiles is script-only."
+author: ais (enduserrr) + NoSleepHermes
+license: MIT
+tags: [decisions, routing, safety-screening, local-llm]
+provides_tools: [decide]

@@ -1,0 +1,12 @@
+[Unit]
+Description=d1-2B Q4_K_M decision model (llama-server on 127.0.0.1:9931, /v1/systemone)
+After=network-online.target
+ConditionPathExists=%h/models/d1-2B-Q4_K_M.gguf
+
+[Service]
+ExecStart=%h/applications/llama.cpp/start-decider.sh
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=default.target

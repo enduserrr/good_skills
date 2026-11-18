@@ -1,0 +1,98 @@
+#!/usr/bin/env python3
+"""decide-session — launch a NEW detached session whose tool approvals are
+answered by a decider model (the ``decider`` Hermes profile + guardian shim).
+
+Hard rules baked in here:
+- NEVER touches any existing session's config — delegation exists only as
+  "launch a new session in the decider profile". There is no self-service path.
+- Refuses unless the USER's gate says allowed (scripts/decide-admin allow).
+  Gate off => the caller's only move is to ASK the user, who decides.
+- Logs every launch to data/delegation-log.jsonl (audit trail).
+
+Usage:
+  scripts/decide-session --query-file FILE [--session NAME] [--dry-run]
+
+Exit codes: 0 launched/dry-run ok, 3 gate refuses, 4 decider profile missing,
+2 usage.
+"""
+from __future__ import annotations
+
+import argparse
+import datetime
+import json
+import os
+import subprocess
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+import delegation_gate as gate  # noqa: E402
+
+PROFILE_DIR = Path(os.environ.get("DECIDER_PROFILE_DIR",
+                                  Path.home() / ".hermes" / "profiles" / "decider"))
+LOG_PATH = Path(os.environ.get("DECIDER_DELEGATION_LOG",
+                               Path(__file__).resolve().parent.parent
+                               / "data" / "delegation-log.jsonl"))
+
+REFUSAL = (
+    "REFUSED: delegated approvals are gated OFF. "
+    "Ask the user in chat; if they agree, THEY run: "
+    "~/.hermes/plugins/decider/scripts/decide-admin allow  — then retry."
+)
+
+
+def _launch_command(query_file: Path, session: str) -> str:
+    # Verified launch recipe: global -p/--profile pre-parser sets HERMES_HOME
+    # (hermes_cli/main.py), tmux detached; stdout never piped.
+    return (f"tmux new-session -d -s {session} "
+            f"'hermes -p decider chat --accept-hooks --yolo "
+            f"--query-file {query_file}'")
+
+
+def main(argv=None) -> int:
+    p = argparse.ArgumentParser(prog="decide-session")
+    p.add_argument("--query-file", required=True)
+    p.add_argument("--session", default=None)
+    p.add_argument("--dry-run", action="store_true")
+    args = p.parse_args(argv)
+
+    query_file = Path(args.query_file).resolve()
+    if not query_file.is_file():
+        print(f"usage: query file not found: {query_file}", file=sys.stderr)
+        return 2
+
+    if not gate.is_allowed():
+        print(REFUSAL, file=sys.stderr)
+        return 3
+
+    session = args.session or f"decide-{datetime.datetime.now():%Y%m%d-%H%M%S}"
+    cmd = _launch_command(query_file, session)
+
+    if not PROFILE_DIR.is_dir():
+        print(f"REFUSED: decider profile not built yet ({PROFILE_DIR} missing) — "
+              f"plan Task C builds it. Nothing launched.", file=sys.stderr)
+        return 4
+
+    if args.dry_run:
+        print(json.dumps({"dry_run": True, "session": session,
+                          "gate": gate.read_gate().get("state"),
+                          "profile": str(PROFILE_DIR), "command": cmd}, indent=2))
+        return 0
+
+    subprocess.run(cmd, shell=True, check=False)
+    LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
+    with LOG_PATH.open("a", encoding="utf-8") as fh:
+        fh.write(json.dumps({
+            "ts": datetime.datetime.now().isoformat(timespec="seconds"),
+            "event": "delegated-session-launch", "session": session,
+            "query_file": str(query_file),
+            "gate_state_at_launch": gate.read_gate().get("state"),
+            "profile": str(PROFILE_DIR)}) + "\n")
+    print(json.dumps({"launched": True, "session": session,
+                      "attach": f"tmux attach -t {session}",
+                      "audit_log": str(LOG_PATH)}, indent=2))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

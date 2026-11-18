@@ -1,0 +1,27 @@
+{
+  "minimal_caution": [
+    "~/.hermes/cache/",
+    "/tmp/",
+    "/var/tmp/"
+  ],
+  "maximal_caution": [
+    "~/.hermes/state.db",
+    "~/.hermes/.env",
+    "/etc/",
+    "/usr/",
+    "/bin/",
+    "/sbin/",
+    "/lib/",
+    "/lib64/",
+    "/boot/",
+    "/opt/",
+    "~/.ssh/",
+    "~/.gnupg/",
+    "~/.bittensor/",
+    "~/.config/systemd/",
+    "~/.hermes/hermes-agent/",
+    "~/.hermes/plugins/",
+    "~/.hermes/profiles/",
+    "~/applications/"
+  ]
+}

@@ -28,6 +28,14 @@ Two usage modes, both documented below:
    by the shim via `auxiliary.approval`. No per-command agent action needed;
    `ESCALATE` is the only path back to a human.
 
+Since v1.2.0 every skill-mode consult runs through the **probe-form harness**
+(`decider-approval/scripts/consult.py`): a strict 13-section request form with
+five boolean gates, an impact-inventory consistency checker, and
+MINIMAL/MAXIMAL path classification with an extreme-caution override — fixed
+text is hardcoded in the converter, so the small model only ever sees
+standardized, self-consistent state (details + regression suite:
+`decider-approval/references/form-harness.md`).
+
 Fail-closed everywhere: server down, timeout, unparseable reply, conflicting answers,
 or low confidence ⇒ the user is asked. Never let decider absence enable a run.
 

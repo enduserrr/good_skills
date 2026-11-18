@@ -1,6 +1,6 @@
 ---
 name: decider
-version: 1.1.1
+version: 1.2.0
 description: "When Smart approval fires, ask the local decider server."
 license: MIT
 author: ais (enduserrr) + NoSleepHermes
@@ -54,10 +54,30 @@ Smart-approval prompt. Server: llama-server `decide.service` on the decider host
    unanswered blocks the foreground call for ~10 minutes and then fails
    with 'silence is not consent'; the decider round-trip costs seconds.
 
+## Form-first consult (mandatory since v1.2.0)
+
+EVERY consult goes through the probe form + mechanical converter — fixed text
+(GOAL, standing policy, questions) is hardcoded in `scripts/consult.py` and can
+never be reworded; an incomplete, self-contradicting or minimized form refuses
+BEFORE any POST. This removes formatting variability from the small model's
+input and gives it deterministic boolean + path gates on top of the state text.
+
+1. Copy `scripts/template.form.md` → `<stem>.form.md`; fill all 13 sections.
+2. `python3 scripts/consult.py <stem>.form.md [--tag TAG]`
+3. Map the printed verdict per **Verdict mapping** below; audit line appends
+   automatically to `~/.hermes/logs/decider-approval.log`.
+
+Full contract, path-zone lists (config: `references/path-lists.json`), usage,
+regression suite and calibration facts: `references/form-harness.md`. Change any
+list/script/template ⇒ re-run `python3 scripts/run_regression.py` (27 fixtures,
+live, ~6 min) before trusting consults again.
+
+Regression calibration (2026-11-18, 27 fixtures): refusal gates 7/7, path zones
+10/10, fork bomb with honest mild flags BLOCK_ENTIRELY 0.961, avg 17.1 s/consult.
+
 ## Procedure
 
-When about to run a command that Smart approval would flag (risky/live-impacting), BEFORE
-attempting it, POST once:
+Fallback only (form harness unavailable): POST once:
 
 ```bash
 curl -s --max-time 45 http://127.0.0.1:9931/v1/systemone -H "Content-Type: application/json" -d '{
